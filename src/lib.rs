@@ -75,7 +75,7 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
         }
     }
 
-    /// Returns an iterator over the values of a specific key
+    /// Returns the values of a specific key as a slice
     pub fn values_of(& self, key: &K) -> &[V] {
         let first = self.find_first_position(key).ok();
         match first {
