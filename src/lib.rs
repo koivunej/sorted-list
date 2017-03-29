@@ -119,7 +119,8 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
         Tuples {
             keys: &self.keys,
             values: &self.values,
-            index: 0,
+            low: 0,
+            high: self.len(),
         }
     }
 
@@ -209,9 +210,9 @@ impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
         };
 
         let skip = start.unwrap_or(self.keys.len());
-        let take = if end <= skip { 0 } else { end - skip };
+        let take = if end <= skip { 0 } else { end };
 
-        let iter = Tuples { keys: &self.keys, values: &self.values, index: skip }.take(take);
+        let iter = Tuples { keys: &self.keys, values: &self.values, low: skip, high: take };
 
         Range {
             iter
@@ -223,7 +224,7 @@ impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
 #[cfg(feature = "nightly")]
 #[derive(Clone)]
 pub struct Range<'a, K: 'a, V: 'a> {
-    iter: ::std::iter::Take<Tuples<'a, K, V>>,
+    iter: Tuples<'a, K, V>,
 }
 
 #[cfg(feature = "nightly")]
@@ -288,25 +289,38 @@ impl InsertionPosition {
 pub struct Tuples<'a, K: 'a, V: 'a> {
     keys: &'a Vec<K>,
     values: &'a Vec<V>,
-    index: usize,
+    low: usize,
+    high: usize,
 }
 
 impl<'a, K, V> Iterator for Tuples<'a, K, V> {
     type Item = (&'a K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.keys.len() {
-            let index = self.index;
-            self.index += 1;
-            Some((&self.keys[index], &self.values[index]))
+        if self.low < self.high {
+            let low = self.low;
+            self.low += 1;
+            Some((&self.keys[low], &self.values[low]))
         } else {
             None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.keys.len() - self.index;
+        let len = self.high - self.low;
         (len, Some(len))
+    }
+}
+
+impl<'a, K, V> DoubleEndedIterator for Tuples<'a, K, V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.high > self.low {
+            self.high -= 1;
+            let high = self.high;
+            Some((&self.keys[high], &self.values[high]))
+        } else {
+            None
+        }
     }
 }
 
@@ -315,7 +329,8 @@ impl<'a, K, V> Clone for Tuples<'a, K, V> {
         Tuples {
             keys: self.keys.clone(),
             values: self.values.clone(),
-            index: self.index,
+            low: self.low,
+            high: self.high,
         }
     }
 }
@@ -529,14 +544,14 @@ mod tests {
         println!("elapsed: {}.{:09}s", elapsed.as_secs(), elapsed.subsec_nanos());
     }
 
+    fn to_vec<'a, A: 'a + Copy, B: 'a + Copy, I: Iterator<Item=(&'a A, &'a B)>>(it: I) -> Vec<(A, B)> {
+        it.map(|(a, b)| (*a, *b)).collect()
+    }
+
     #[cfg(feature = "nightly")]
     #[test]
     fn range() {
         use std::collections::Bound::*;
-
-        fn to_vec<'a, A: 'a + Copy, B: 'a + Copy, I: Iterator<Item=(&'a A, &'a B)>>(it: I) -> Vec<(A, B)> {
-            it.map(|(a, b)| (*a, *b)).collect()
-        }
 
         let mut list: SortedList<u32, u8> = SortedList::new();
         list.insert_only_new(1, 4);
@@ -681,5 +696,93 @@ mod tests {
         assert_eq!(list.last_value_of(&1), Some(&3));
         assert_eq!(list.last_value_of(&2), Some(&5));
         assert_eq!(list.last_value_of(&3), Some(&6));
+    }
+
+    #[test]
+    fn double_ended_iter_empty() {
+        let list: SortedList<u32, u8> = SortedList::new();
+        assert_eq!(list.iter().next_back(), None);
+    }
+
+    #[test]
+    fn double_ended_iter_single() {
+        let mut list: SortedList<u32, u8> = SortedList::new();
+
+        list.insert_only_new(1, 3);
+
+        let mut iter = list.iter();
+        assert_eq!(iter.next_back(), Some((&1, &3)));
+        assert_eq!(iter.next_back(), None);
+    }
+
+    #[test]
+    fn double_ended_iter_multiple() {
+        let mut list: SortedList<u32, u8> = SortedList::new();
+
+        list.insert_only_new(1, 3);
+        list.insert_only_new(0, 0);
+        list.insert_only_new(0, 1);
+        list.insert_only_new(2, 4);
+        list.insert_only_new(0, 2);
+        list.insert_only_new(3, 6);
+        list.insert_only_new(2, 5);
+
+        assert_eq!(
+            to_vec(list.iter().rev()),
+            vec![(3, 6), (2, 5), (2, 4), (1, 3), (0, 2), (0, 1), (0, 0)]);
+    }
+
+    #[test]
+    fn double_ended_iter_zig_zag() {
+        let mut list: SortedList<u32, u8> = SortedList::new();
+
+        list.insert_only_new(1, 3);
+        list.insert_only_new(0, 0);
+        list.insert_only_new(0, 1);
+        list.insert_only_new(2, 4);
+        list.insert_only_new(0, 2);
+        list.insert_only_new(3, 6);
+        list.insert_only_new(2, 5);
+
+        let mut iter = list.iter();
+        assert_eq!(iter.next(), (&0, &0).into());
+        assert_eq!(iter.next_back(), (&3, &6).into());
+
+        assert_eq!(iter.next(), (&0, &1).into());
+        assert_eq!(iter.next_back(), (&2, &5).into());
+
+        assert_eq!(iter.next(), (&0, &2).into());
+        assert_eq!(iter.next_back(), (&2, &4).into());
+
+        assert_eq!(iter.next(), (&1, &3).into());
+        assert_eq!(iter.next_back(), None);
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn double_ended_iter_zag_zig() {
+        let mut list: SortedList<u32, u8> = SortedList::new();
+
+        list.insert_only_new(1, 3);
+        list.insert_only_new(0, 0);
+        list.insert_only_new(0, 1);
+        list.insert_only_new(2, 4);
+        list.insert_only_new(0, 2);
+        list.insert_only_new(3, 6);
+        list.insert_only_new(2, 5);
+
+        let mut iter = list.iter();
+        assert_eq!(iter.next_back(), (&3, &6).into());
+        assert_eq!(iter.next(), (&0, &0).into());
+
+        assert_eq!(iter.next_back(), (&2, &5).into());
+        assert_eq!(iter.next(), (&0, &1).into());
+
+        assert_eq!(iter.next_back(), (&2, &4).into());
+        assert_eq!(iter.next(), (&0, &2).into());
+
+        assert_eq!(iter.next_back(), (&1, &3).into());
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next(), None);
     }
 }
