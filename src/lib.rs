@@ -2,7 +2,6 @@
 #![deny(missing_debug_implementations)]
 #![deny(unused_imports)]
 
-#![cfg_attr(feature = "nightly", feature(collections_bound))]
 #![cfg_attr(feature = "nightly", feature(collections_range))]
 
 //! Simple sorted list collection like the one found in the .NET collections library.

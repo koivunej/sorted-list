@@ -1,11 +1,9 @@
 language: rust
-rust:
-  - stable
-  - beta
-  - nightly
 
 matrix:
   include:
+    - rust: stable
+    - rust: beta
     - rust: nightly
       env: FEATURES=nightly
 
