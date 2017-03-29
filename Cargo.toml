@@ -1,6 +1,6 @@
 [package]
 name = "sorted-list"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Joonas Koivunen <joonas.koivunen@gmail.com>"]
 repository = "https://github.com/koivunej/sorted-list"
 description = "Simple SortedList data structure which allows mapping an Ord key to multiple distinct PartialEq values"
