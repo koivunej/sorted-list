@@ -4,6 +4,11 @@ rust:
   - beta
   - nightly
 
+matrix:
+  include:
+    - rust: nightly
+      env: FEATURES=nightly
+
 script:
   - |
       cargo build --verbose --features "$FEATURES" &&
