@@ -2,6 +2,7 @@
 name = "sorted-list"
 version = "0.1.0"
 authors = ["Joonas Koivunen <joonas.koivunen@gmail.com>"]
+repository = "https://github.com/koivunej/sorted-list"
 
 [features]
 default = []
