@@ -17,7 +17,7 @@ Unsupported:
 
 ```
 [dependencies]
-sorted-list = "0.1"
+sorted-list = "0.2"
 ```
 
 or:
