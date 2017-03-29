@@ -76,11 +76,17 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     }
 
     /// Returns an iterator over the values of a specific key
-    pub fn values_of<'a>(&'a self, key: &'a K) -> ValuesOf<'a, K, V> {
-        /// FIXME: binary search here
-        let first = self.keys.iter().position(|existing| key == existing);
-
-        ValuesOf::new(first, key, self.iter())
+    pub fn values_of(& self, key: &K) -> &[V] {
+        let first = self.find_first_position(key).ok();
+        match first {
+            Some(first) => {
+                let last = self.find_last_position(key).unwrap();
+                &self.values[first..last]
+            },
+            None => {
+                &self.values[0..0]
+            }
+        }
     }
 
     fn find_insertion_positition(&self, from: usize, key: &K, value: &V) -> Option<InsertionPosition> {
@@ -130,69 +136,70 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     pub fn values(&self) -> ::std::slice::Iter<V> {
         self.values.iter()
     }
+
+    fn find_first_position(&self, key: &K) -> Result<usize, usize> {
+        match self.keys.binary_search(key) {
+            Ok(mut pos) => {
+                while pos > 0 && key == &self.keys[pos] { pos -= 1; }
+
+                if pos == 0 {
+                    if key == &self.keys[0] {
+                        Ok(0)
+                    } else {
+                        Ok(1)
+                    }
+                } else {
+                    Ok(pos + 1)
+                }
+            },
+            Err(pos) => Err(pos),
+        }
+    }
+
+    fn find_last_position(&self, key: &K) -> Result<usize, usize> {
+        match self.keys.binary_search(key) {
+            Ok(mut pos) => {
+                while pos < self.keys.len() && key == &self.keys[pos] { pos += 1; }
+
+                if pos == self.keys.len() {
+                    // this is off by one ...
+                    Ok(pos)
+                } else {
+                    Ok(pos)
+                }
+            },
+            Err(pos) => Err(pos),
+        }
+    }
+}
+
+trait ResultExt<A> {
+    fn either(self) -> A;
+}
+
+impl<A> ResultExt<A> for Result<A, A> {
+    fn either(self) -> A {
+        match self {
+            Ok(x) => x,
+            Err(x) => x,
+        }
+    }
 }
 
 #[cfg(feature = "nightly")]
 impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
     /// Returns an iterator over the specified range of tuples
     pub fn range<R>(&self, range: R) -> Range<K, V> where R: RangeArgument<K>, {
-
-        fn look_left_from<K: Ord>(key: &K, vec: &Vec<K>, mut pos: usize, offset: usize) -> Option<usize> {
-            while pos > 0 && key == &vec[pos] { pos -= 1; }
-            if pos == 0 {
-                None
-            } else {
-                Some(pos + offset)
-            }
-        }
-
-        fn look_right_from<K: Ord>(key: &K, vec: &Vec<K>, mut pos: usize) -> Option<usize> {
-            while pos < vec.len() && key == &vec[pos] { pos += 1; }
-            if pos == vec.len() {
-                None
-            } else {
-                Some(pos)
-            }
-        }
-
         let start = match range.start() {
-            Included(key) => {
-                match self.keys.binary_search(key) {
-                    Ok(pos) => Some(look_left_from(key, &self.keys, pos, 1).unwrap_or(0)),
-                    Err(pos) => look_left_from(key, &self.keys, pos, 0),
-                }
-            },
-            Excluded(key) => {
-                let pos = match self.keys.binary_search(key) {
-                    Ok(pos) => pos,
-                    Err(pos) => pos,
-                };
-
-                look_right_from(key, &self.keys, pos)
-            },
-            Unbounded => {
-                Some(0)
-            }
+            Included(key) => self.find_first_position(key).either().into(),
+            Excluded(key) => self.find_last_position(key).either().into(),
+            Unbounded => Some(0)
         };
 
         let end = match range.end() {
-            Included(key) => {
-                let pos = match self.keys.binary_search(key) {
-                    Ok(pos) => pos,
-                    Err(pos) => pos,
-                };
-
-                look_right_from(key, &self.keys, pos).unwrap_or(self.keys.len())
-            },
-            Excluded(key) => {
-                match self.keys.binary_search(key) {
-                    Ok(pos) => look_left_from(key, &self.keys, pos, 1).unwrap_or(self.keys.len()),
-                    Err(pos) => look_left_from(key, &self.keys, pos, 0).unwrap_or(self.keys.len()),
-                }
-            },
-            Unbounded => {
-                self.len()
-            }
+            Included(key) => self.find_last_position(key).either(),
+            Excluded(key) => self.find_first_position(key).either(),
+            Unbounded => self.len(),
         };
 
         let skip = start.unwrap_or(self.keys.len());
@@ -324,68 +331,6 @@ impl<'a, K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for Tuples<'
 
 impl<'a, K, V> ExactSizeIterator for Tuples<'a, K, V> {}
 
-/// Iterator over values of a specific key stored in `SortedList`
-pub struct ValuesOf<'a, K: 'a + PartialEq, V: 'a> {
-    iter: Option<::std::iter::Skip<Tuples<'a, K, V>>>,
-    key: &'a K,
-}
-
-impl<'a, K: PartialEq, V> Clone for ValuesOf<'a, K, V> {
-    fn clone(&self) -> Self {
-        ValuesOf {
-            iter: self.iter.clone(),
-            key: self.key.clone(),
-        }
-    }
-}
-
-impl<'a, K: PartialEq, V> ValuesOf<'a, K, V> {
-    fn new(first_index: Option<usize>, key: &'a K, iter: Tuples<'a, K, V>) -> Self {
-        let iter = match first_index {
-            Some(first_index) => {
-                Some(iter.skip(first_index))
-            },
-            None => None,
-        };
-        ValuesOf { iter, key }
-    }
-}
-
-impl<'a, K: PartialEq, V> Iterator for ValuesOf<'a, K, V> {
-    type Item = &'a V;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.as_mut() {
-            Some(mut iter) => {
-                match iter.next() {
-                    Some((k, v)) => if self.key == k {
-                        Some(v)
-                    } else {
-                        None
-                    },
-                    None => None
-                }
-            },
-            None => None
-        }
-    }
-}
-
-impl<'a, K: PartialEq, V: fmt::Debug> fmt::Debug for ValuesOf<'a, K, V> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let mut clone = self.clone().peekable();
-        write!(fmt, "[")?;
-        while let Some(val) = clone.next() {
-            if clone.peek().is_some() {
-                write!(fmt, "{:?}, ", val)?;
-            } else {
-                write!(fmt, "{:?}", val)?;
-            }
-        }
-        write!(fmt, "]")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
@@ -513,6 +458,12 @@ mod tests {
     }
 
     #[test]
+    fn empty_values_of() {
+        let list: SortedList<u32, u8> = SortedList::new();
+        assert_eq!(list.values_of(&0).iter().next(), None);
+    }
+
+    #[test]
     fn iterate_values_of() {
         let mut list = SortedList::new();
         list.insert_only_new(1u32, 4u8);
@@ -524,27 +475,23 @@ mod tests {
         list.insert_only_new(0u32, 3u8);
         list.insert_only_new(2u32, 6u8);
 
-        let q = 0;
-        let mut values_of = list.values_of(&q);
+        let mut values_of = list.values_of(&0).iter();
         assert_eq!(values_of.next(), Some(&0));
         assert_eq!(values_of.next(), Some(&1));
         assert_eq!(values_of.next(), Some(&2));
         assert_eq!(values_of.next(), Some(&3));
         assert_eq!(values_of.next(), None);
 
-        let q = 1;
-        let mut values_of = list.values_of(&q);
+        let mut values_of = list.values_of(&1).iter();
         assert_eq!(values_of.next(), Some(&4));
         assert_eq!(values_of.next(), None);
 
-        let q = 2;
-        let mut values_of = list.values_of(&q);
+        let mut values_of = list.values_of(&2).iter();
         assert_eq!(values_of.next(), Some(&5));
         assert_eq!(values_of.next(), Some(&6));
         assert_eq!(values_of.next(), None);
 
-        let q = 3;
-        let mut values_of = list.values_of(&q);
+        let mut values_of = list.values_of(&3).iter();
         assert_eq!(values_of.next(), Some(&7));
         assert_eq!(values_of.next(), None);
     }
