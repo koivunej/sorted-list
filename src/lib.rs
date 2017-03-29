@@ -133,6 +133,16 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
         self.values.iter()
     }
 
+    /// Returns the first (in insertion order) value of `key`
+    pub fn first_value_of(&self, key: &K) -> Option<&V> {
+        self.find_first_position(key).ok().map(|idx| &self.values[idx])
+    }
+
+    /// Returns the last (in insertion order) value of `key`
+    pub fn last_value_of(&self, key: &K) -> Option<&V> {
+        self.find_last_position(key).ok().map(|idx| &self.values[idx - 1])
+    }
+
     fn find_first_position(&self, key: &K) -> Result<usize, usize> {
         match self.keys.binary_search(key) {
             Ok(mut pos) => {
@@ -637,5 +647,39 @@ mod tests {
         assert_eq!(
             to_vec(list.range(..)),
             to_vec(list.iter()));
+    }
+
+    #[test]
+    fn first_value_of() {
+        let mut list: SortedList<u32, u8> = SortedList::new();
+        list.insert_only_new(1, 3);
+        list.insert_only_new(0, 0);
+        list.insert_only_new(0, 1);
+        list.insert_only_new(2, 4);
+        list.insert_only_new(0, 2);
+        list.insert_only_new(3, 6);
+        list.insert_only_new(2, 5);
+
+        assert_eq!(list.first_value_of(&0), Some(&0));
+        assert_eq!(list.first_value_of(&1), Some(&3));
+        assert_eq!(list.first_value_of(&2), Some(&4));
+        assert_eq!(list.first_value_of(&3), Some(&6));
+    }
+
+    #[test]
+    fn last_value_of() {
+        let mut list: SortedList<u32, u8> = SortedList::new();
+        list.insert_only_new(1, 3);
+        list.insert_only_new(0, 0);
+        list.insert_only_new(0, 1);
+        list.insert_only_new(2, 4);
+        list.insert_only_new(0, 2);
+        list.insert_only_new(3, 6);
+        list.insert_only_new(2, 5);
+
+        assert_eq!(list.last_value_of(&0), Some(&2));
+        assert_eq!(list.last_value_of(&1), Some(&3));
+        assert_eq!(list.last_value_of(&2), Some(&5));
+        assert_eq!(list.last_value_of(&3), Some(&6));
     }
 }
