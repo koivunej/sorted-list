@@ -1,3 +1,7 @@
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![deny(unused_imports)]
+
 //! Simple sorted list collection like the one found in the .NET collections library.
 
 use std::fmt;
@@ -145,6 +149,7 @@ impl InsertionPosition {
     }
 }
 
+/// Iterator over tuples stored in `SortedList`
 pub struct Tuples<'a, K: 'a, V: 'a> {
     keys: ::std::slice::Iter<'a, K>,
     values: ::std::slice::Iter<'a, V>,
@@ -180,6 +185,7 @@ impl<'a, K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for Tuples<'
         let remaining = self.size_hint().0;
         let mut clone = self.clone();
         let mut idx = 0;
+        write!(fmt, "[")?;
         while let Some(tuple) = clone.next() {
             if idx == remaining - 1 {
                 write!(fmt, "{:?}", tuple)?;
@@ -188,15 +194,25 @@ impl<'a, K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for Tuples<'
             }
             idx += 1;
         }
-        Ok(())
+        write!(fmt, "]")
     }
 }
 
 impl<'a, K, V> ExactSizeIterator for Tuples<'a, K, V> {}
 
+/// Iterator over values of a specific key stored in `SortedList`
 pub struct ValuesOf<'a, K: 'a + PartialEq, V: 'a> {
     iter: Option<::std::iter::Skip<Tuples<'a, K, V>>>,
     key: &'a K,
+}
+
+impl<'a, K: PartialEq, V> Clone for ValuesOf<'a, K, V> {
+    fn clone(&self) -> Self {
+        ValuesOf {
+            iter: self.iter.clone(),
+            key: self.key.clone(),
+        }
+    }
 }
 
 impl<'a, K: PartialEq, V> ValuesOf<'a, K, V> {
@@ -228,6 +244,21 @@ impl<'a, K: PartialEq, V> Iterator for ValuesOf<'a, K, V> {
             },
             None => None
         }
+    }
+}
+
+impl<'a, K: PartialEq, V: fmt::Debug> fmt::Debug for ValuesOf<'a, K, V> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let mut clone = self.clone().peekable();
+        write!(fmt, "[")?;
+        while let Some(val) = clone.next() {
+            if clone.peek().is_some() {
+                write!(fmt, "{:?}, ", val)?;
+            } else {
+                write!(fmt, "{:?}", val)?;
+            }
+        }
+        write!(fmt, "]")
     }
 }
 
