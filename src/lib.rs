@@ -115,8 +115,9 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     /// Iterate all stored tuples, keys in order, values in insertion order
     pub fn iter(&self) -> Tuples<K, V> {
         Tuples {
-            keys: self.keys.iter(),
-            values: self.values.iter(),
+            keys: &self.keys,
+            values: &self.values,
+            index: 0,
         }
     }
 
@@ -197,7 +198,7 @@ impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
         let skip = start.unwrap_or(self.keys.len());
         let take = if end <= skip { 0 } else { end - skip };
 
-        let iter = self.iter().skip(skip).take(take);
+        let iter = Tuples { keys: &self.keys, values: &self.values, index: skip }.take(take);
 
         Range {
             iter
@@ -208,7 +209,7 @@ impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
 /// Iterator for an range of tuples
 #[derive(Clone)]
 pub struct Range<'a, K: 'a, V: 'a> {
-    iter: ::std::iter::Take<::std::iter::Skip<Tuples<'a, K, V>>>,
+    iter: ::std::iter::Take<Tuples<'a, K, V>>,
 }
 
 impl<'a, K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for Range<'a, K, V> {
@@ -269,23 +270,27 @@ impl InsertionPosition {
 
 /// Iterator over tuples stored in `SortedList`
 pub struct Tuples<'a, K: 'a, V: 'a> {
-    keys: ::std::slice::Iter<'a, K>,
-    values: ::std::slice::Iter<'a, V>,
+    keys: &'a Vec<K>,
+    values: &'a Vec<V>,
+    index: usize,
 }
 
 impl<'a, K, V> Iterator for Tuples<'a, K, V> {
     type Item = (&'a K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match (self.keys.next(), self.values.next()) {
-            (Some(k), Some(v)) => Some((k, v)),
-            (None, None) => None,
-            _ => unreachable!(),
+        if self.index < self.keys.len() {
+            let index = self.index;
+            self.index += 1;
+            Some((&self.keys[index], &self.values[index]))
+        } else {
+            None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.keys.size_hint()
+        let len = self.keys.len() - self.index;
+        (len, Some(len))
     }
 }
 
@@ -294,6 +299,7 @@ impl<'a, K, V> Clone for Tuples<'a, K, V> {
         Tuples {
             keys: self.keys.clone(),
             values: self.values.clone(),
+            index: self.index,
         }
     }
 }
