@@ -5,7 +5,6 @@ authors = ["Joonas Koivunen <joonas.koivunen@gmail.com>"]
 
 [features]
 default = []
-
 nightly = []
 
 [dependencies]
