@@ -210,17 +210,20 @@ impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
 }
 
 /// Iterator for an range of tuples
+#[cfg(feature = "nightly")]
 #[derive(Clone)]
 pub struct Range<'a, K: 'a, V: 'a> {
     iter: ::std::iter::Take<Tuples<'a, K, V>>,
 }
 
+#[cfg(feature = "nightly")]
 impl<'a, K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for Range<'a, K, V> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{:?}", self.iter.clone())
     }
 }
 
+#[cfg(feature = "nightly")]
 impl<'a, K, V> Iterator for Range<'a, K, V> {
     type Item = (&'a K, &'a V);
 
