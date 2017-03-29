@@ -196,7 +196,7 @@ impl<A> ResultExt<A> for Result<A, A> {
 #[cfg(feature = "nightly")]
 impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
     /// Returns an iterator over the specified range of tuples
-    pub fn range<R>(&self, range: R) -> Range<K, V> where R: RangeArgument<K>, {
+    pub fn range<R>(&self, range: R) -> Tuples<K, V> where R: RangeArgument<K>, {
         let start = match range.start() {
             Included(key) => self.find_first_position(key).either().into(),
             Excluded(key) => self.find_last_position(key).either().into(),
@@ -212,34 +212,7 @@ impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
         let skip = start.unwrap_or(self.keys.len());
         let take = if end <= skip { 0 } else { end };
 
-        let iter = Tuples { keys: &self.keys, values: &self.values, low: skip, high: take };
-
-        Range {
-            iter
-        }
-    }
-}
-
-/// Iterator for an range of tuples
-#[cfg(feature = "nightly")]
-#[derive(Clone)]
-pub struct Range<'a, K: 'a, V: 'a> {
-    iter: Tuples<'a, K, V>,
-}
-
-#[cfg(feature = "nightly")]
-impl<'a, K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for Range<'a, K, V> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{:?}", self.iter.clone())
-    }
-}
-
-#[cfg(feature = "nightly")]
-impl<'a, K, V> Iterator for Range<'a, K, V> {
-    type Item = (&'a K, &'a V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+        Tuples { keys: &self.keys, values: &self.values, low: skip, high: take }
     }
 }
 
