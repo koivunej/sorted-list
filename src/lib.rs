@@ -1,10 +1,22 @@
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
-#![deny(unused_imports)]
+#![allow(unused_imports)]
+
+#![cfg_attr(feature = "nightly", feature(collections_bound))]
+#![cfg_attr(feature = "nightly", feature(collections_range))]
 
 //! Simple sorted list collection like the one found in the .NET collections library.
 
 use std::fmt;
+
+#[cfg(feature = "nightly")]
+use std::borrow::Borrow;
+
+#[cfg(feature = "nightly")]
+use std::collections::Bound::*;
+
+#[cfg(feature = "nightly")]
+use std::collections::range::RangeArgument;
 
 /// `SortedList` stores multiple `(K, V)` tuples ordered by K, then in the order of insertion for `V`.
 /// Implmented using two `Vec` this should be fast for in-order inserts and quite bad in the
@@ -65,6 +77,7 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
 
     /// Returns an iterator over the values of a specific key
     pub fn values_of<'a>(&'a self, key: &'a K) -> ValuesOf<'a, K, V> {
+        /// FIXME: binary search here
         let first = self.keys.iter().position(|existing| key == existing);
 
         ValuesOf::new(first, key, self.iter())
@@ -115,6 +128,100 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     /// Iterate over all values
     pub fn values(&self) -> ::std::slice::Iter<V> {
         self.values.iter()
+    }
+}
+
+#[cfg(feature = "nightly")]
+impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
+    /// Returns an iterator over the specified range of tuples
+    pub fn range<R>(&self, range: R) -> Range<K, V> where R: RangeArgument<K>, {
+
+        fn look_left_from<K: Ord>(key: &K, vec: &Vec<K>, mut pos: usize, offset: usize) -> Option<usize> {
+            while pos > 0 && key == &vec[pos] { pos -= 1; }
+            if pos == 0 {
+                None
+            } else {
+                Some(pos + offset)
+            }
+        }
+
+        fn look_right_from<K: Ord>(key: &K, vec: &Vec<K>, mut pos: usize) -> Option<usize> {
+            while pos < vec.len() && key == &vec[pos] { pos += 1; }
+            if pos == vec.len() {
+                None
+            } else {
+                Some(pos)
+            }
+        }
+
+        let start = match range.start() {
+            Included(key) => {
+                match self.keys.binary_search(key) {
+                    Ok(pos) => Some(look_left_from(key, &self.keys, pos, 1).unwrap_or(0)),
+                    Err(pos) => look_left_from(key, &self.keys, pos, 0),
+                }
+            },
+            Excluded(key) => {
+                let pos = match self.keys.binary_search(key) {
+                    Ok(pos) => pos,
+                    Err(pos) => pos,
+                };
+
+                look_right_from(key, &self.keys, pos)
+            },
+            Unbounded => {
+                Some(0)
+            }
+        };
+
+        let end = match range.end() {
+            Included(key) => {
+                let pos = match self.keys.binary_search(key) {
+                    Ok(pos) => pos,
+                    Err(pos) => pos,
+                };
+
+                look_right_from(key, &self.keys, pos).unwrap_or(self.keys.len())
+            },
+            Excluded(key) => {
+                match self.keys.binary_search(key) {
+                    Ok(pos) => look_left_from(key, &self.keys, pos, 1).unwrap_or(self.keys.len()),
+                    Err(pos) => look_left_from(key, &self.keys, pos, 0).unwrap_or(self.keys.len()),
+                }
+            },
+            Unbounded => {
+                self.len()
+            }
+        };
+
+        let skip = start.unwrap_or(self.keys.len());
+        let take = if end <= skip { 0 } else { end - skip };
+
+        let iter = self.iter().skip(skip).take(take);
+
+        Range {
+            iter
+        }
+    }
+}
+
+/// Iterator for an range of tuples
+#[derive(Clone)]
+pub struct Range<'a, K: 'a, V: 'a> {
+    iter: ::std::iter::Take<::std::iter::Skip<Tuples<'a, K, V>>>,
+}
+
+impl<'a, K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for Range<'a, K, V> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{:?}", self.iter.clone())
+    }
+}
+
+impl<'a, K, V> Iterator for Range<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
     }
 }
 
@@ -458,5 +565,127 @@ mod tests {
 
         let elapsed = began.elapsed();
         println!("elapsed: {}.{:09}s", elapsed.as_secs(), elapsed.subsec_nanos());
+    }
+
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn range() {
+        use std::collections::Bound;
+        use std::collections::Bound::*;
+        use std::collections::range::RangeArgument;
+
+        fn to_vec<'a, A: 'a + Copy, B: 'a + Copy, I: Iterator<Item=(&'a A, &'a B)>>(it: I) -> Vec<(A, B)> {
+            it.map(|(a, b)| (*a, *b)).collect()
+        }
+
+        let mut list: SortedList<u32, u8> = SortedList::new();
+        list.insert_only_new(1, 4);
+        list.insert_only_new(0, 0);
+        list.insert_only_new(0, 1);
+        list.insert_only_new(2, 5);
+        list.insert_only_new(0, 2);
+        list.insert_only_new(3, 7);
+        list.insert_only_new(0, 3);
+        list.insert_only_new(2, 6);
+        list.insert_only_new(4, 8);
+        list.insert_only_new(6, 9);
+        list.insert_only_new(6, 10);
+        list.insert_only_new(9, 11);
+
+        assert_eq!(
+            to_vec(list.range((Unbounded, Included(2)))),
+            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4), (2, 5), (2, 6)]);
+
+        assert_eq!(
+            to_vec(list.range((Unbounded, Excluded(2)))),
+            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(0), Excluded(2)))),
+            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(1), Excluded(2)))),
+            vec![(1, 4)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(2), Excluded(2)))),
+            vec![]);
+
+        assert_eq!(
+            to_vec(list.range((Included(2), Included(2)))),
+            vec![(2, 5), (2, 6)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(2), Excluded(3)))),
+            vec![(2, 5), (2, 6)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(2), Included(3)))),
+            vec![(2, 5), (2, 6), (3, 7)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(2), Unbounded))),
+            vec![(2, 5), (2, 6), (3, 7), (4, 8), (6, 9), (6, 10), (9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(1), Unbounded))),
+            vec![(2, 5), (2, 6), (3, 7), (4, 8), (6, 9), (6, 10), (9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(0), Unbounded))),
+            vec![(1, 4), (2, 5), (2, 6), (3, 7), (4, 8), (6, 9), (6, 10), (9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(4), Unbounded))),
+            vec![(6, 9), (6, 10), (9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(5), Unbounded))),
+            vec![(6, 9), (6, 10), (9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(5), Unbounded))),
+            vec![(6, 9), (6, 10), (9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(6), Unbounded))),
+            vec![(9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(6), Excluded(7)))),
+            vec![]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(6), Included(8)))),
+            vec![]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(6), Excluded(9)))),
+            vec![]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(6), Included(9)))),
+            vec![(9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(7), Included(9)))),
+            vec![(9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(7), Included(9)))),
+            vec![(9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Excluded(8), Included(9)))),
+            vec![(9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range((Included(8), Included(9)))),
+            vec![(9, 11)]);
+
+        assert_eq!(
+            to_vec(list.range(..)),
+            to_vec(list.iter()));
     }
 }
