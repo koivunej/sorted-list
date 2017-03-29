@@ -118,6 +118,17 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     }
 }
 
+impl<K: Clone + Ord, V: PartialEq> Extend<(K, V)> for SortedList<K, V> {
+    fn extend<T>(&mut self, iter: T) where T: IntoIterator<Item = (K, V)> {
+        let mut temp = iter.into_iter().collect::<Vec<_>>();
+        temp.sort_by_key(|&(ref k, _)| k.clone());
+
+        for (k, v) in temp {
+            self.insert(k, v);
+        }
+    }
+}
+
 impl<K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for SortedList<K, V> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "SortedList {{ {:?} }}", &self.iter())
@@ -423,5 +434,29 @@ mod tests {
         let mut values_of = list.values_of(&q);
         assert_eq!(values_of.next(), Some(&7));
         assert_eq!(values_of.next(), None);
+    }
+
+    #[test]
+    fn extend_worst_case() {
+        use std::time::Instant;
+
+        /// 1000, 100 => 4.08s (3.76s release) originally
+        /// 1000, 100 for copy types: 0.66s (0.23s release)
+        let max_key = 1000;
+        let max_val = 100;
+        let mut input = Vec::with_capacity(max_key * max_val);
+        for key in 0..max_key {
+            for val in 0..max_val {
+                input.push((max_key - key, val));
+            }
+        }
+
+        let began = Instant::now();
+
+        let mut slist = SortedList::new();
+        slist.extend(input);
+
+        let elapsed = began.elapsed();
+        println!("elapsed: {}.{:09}s", elapsed.as_secs(), elapsed.subsec_nanos());
     }
 }
