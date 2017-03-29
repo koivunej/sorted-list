@@ -1,6 +1,6 @@
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
-#![allow(unused_imports)]
+#![deny(unused_imports)]
 
 #![cfg_attr(feature = "nightly", feature(collections_bound))]
 #![cfg_attr(feature = "nightly", feature(collections_range))]
@@ -8,9 +8,6 @@
 //! Simple sorted list collection like the one found in the .NET collections library.
 
 use std::fmt;
-
-#[cfg(feature = "nightly")]
-use std::borrow::Borrow;
 
 #[cfg(feature = "nightly")]
 use std::collections::Bound::*;
