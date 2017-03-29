@@ -7,7 +7,7 @@ Same key can be mapped to multiple values, and the values are stored in insertio
 Unsupported:
 
  * deletion
- * range queries
+ * ~range queries~ (requires feature = "nightly" and a nightly compiler)
 
 ## Cargo.toml
 
