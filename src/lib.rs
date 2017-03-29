@@ -180,6 +180,15 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     }
 }
 
+impl<K: Ord + Clone, V: PartialEq + Clone> Clone for SortedList<K, V> {
+    fn clone(&self) -> Self {
+        SortedList {
+            keys: self.keys.clone(),
+            values: self.values.clone(),
+        }
+    }
+}
+
 trait ResultExt<A> {
     fn either(self) -> A;
 }
@@ -215,6 +224,58 @@ impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
         Tuples { keys: &self.keys, values: &self.values, low: skip, high: take }
     }
 }
+
+impl<K: Ord, V: PartialEq> IntoIterator for SortedList<K, V> {
+    type Item = (K, V);
+    type IntoIter = IntoTuples<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoTuples {
+            keys: self.keys.into_iter(),
+            values: self.values.into_iter(),
+        }
+    }
+}
+
+/// IntoIterator version of `Tuples`
+pub struct IntoTuples<K, V> {
+    keys: ::std::vec::IntoIter<K>,
+    values: ::std::vec::IntoIter<V>,
+}
+
+impl<K, V> fmt::Debug for IntoTuples<K, V> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "IntoTuples {{ remaining: {} }}", self.keys.size_hint().0)
+    }
+}
+
+impl<K, V> Iterator for IntoTuples<K, V> {
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match (self.keys.next(), self.values.next()) {
+            (Some(k), Some(v)) => (k, v).into(),
+            (None, None) => None,
+            _ => unreachable!()
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.keys.size_hint()
+    }
+}
+
+impl<K, V> DoubleEndedIterator for IntoTuples<K, V> {
+    fn next_back(&mut self) -> Option<(K, V)> {
+        match (self.keys.next_back(), self.values.next_back()) {
+            (Some(k), Some(v)) => (k, v).into(),
+            (None, None) => None,
+            _ => unreachable!()
+        }
+    }
+}
+
+impl<K, V> ExactSizeIterator for IntoTuples<K, V> {}
 
 impl<K: Clone + Ord, V: PartialEq> Extend<(K, V)> for SortedList<K, V> {
     fn extend<T>(&mut self, iter: T) where T: IntoIterator<Item = (K, V)> {
@@ -757,5 +818,22 @@ mod tests {
         assert_eq!(iter.next_back(), (&1, &3).into());
         assert_eq!(iter.next(), None);
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn into_iter() {
+        let mut list: SortedList<u32, u8> = SortedList::new();
+
+        list.insert_only_new(1, 3);
+        list.insert_only_new(0, 0);
+        list.insert_only_new(0, 1);
+        list.insert_only_new(2, 4);
+        list.insert_only_new(0, 2);
+        list.insert_only_new(3, 6);
+        list.insert_only_new(2, 5);
+
+        assert_eq!(
+            list.clone().into_iter().collect::<Vec<_>>(),
+            to_vec(list.iter()));
     }
 }
