@@ -519,9 +519,7 @@ mod tests {
     #[cfg(feature = "nightly")]
     #[test]
     fn range() {
-        use std::collections::Bound;
         use std::collections::Bound::*;
-        use std::collections::range::RangeArgument;
 
         fn to_vec<'a, A: 'a + Copy, B: 'a + Copy, I: Iterator<Item=(&'a A, &'a B)>>(it: I) -> Vec<(A, B)> {
             it.map(|(a, b)| (*a, *b)).collect()
