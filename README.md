@@ -1,6 +1,7 @@
 # SortedList
 
 [![Build Status](https://travis-ci.org/koivunej/sorted-list.svg?branch=master)](https://travis-ci.org/koivunej/sorted-list)
+[![Docs](https://docs.rs/crate/sorted-list)](https://docs.rs/sorted-list/badge.svg)
 
 Data structure similar to [SortedList found in .NET](https://msdn.microsoft.com/en-us/library/ms132319(v=vs.110).aspx) for rust.
 Naive implementation based on `Vec<K>` and `Vec<V>`.
@@ -24,11 +25,6 @@ or:
 [dependencies]
 sorted-list = { git = "https://github.com/koivunej/sorted-list.git" }
 ```
-
-
-## Documentation
-
-Probably soon at docs.rs.
 
 ## License
 
