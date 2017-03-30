@@ -15,14 +15,14 @@ Unsupported:
 
 ## Cargo.toml
 
-```
+```toml
 [dependencies]
 sorted-list = "0.2"
 ```
 
 or:
 
-```
+```toml
 [dependencies]
 sorted-list = { git = "https://github.com/koivunej/sorted-list.git" }
 ```
