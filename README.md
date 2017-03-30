@@ -1,8 +1,8 @@
 # SortedList
 
 [![Build Status](https://travis-ci.org/koivunej/sorted-list.svg?branch=master)](https://travis-ci.org/koivunej/sorted-list)
-[![Docs](https://docs.rs/crate/sorted-list)](https://docs.rs/sorted-list/badge.svg)
-[![crates.io](https://crates.io/crates/sorted-list)](https://img.shields.io/crates/v/sorted-list.svg)
+[![Docs](https://docs.rs/sorted-list/badge.svg)](https://docs.rs/crate/sorted-list)
+[![crates.io](https://img.shields.io/crates/v/sorted-list.svg)](https://crates.io/crates/sorted-list)
 
 Data structure similar to [SortedList found in .NET](https://msdn.microsoft.com/en-us/library/ms132319(v=vs.110).aspx) for rust.
 Naive implementation based on `Vec<K>` and `Vec<V>`.
