@@ -43,6 +43,11 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
         SortedList { keys: Vec::new(), values: Vec::new() }
     }
 
+    /// Creates `SortedList` with preallocated capacity of `len`
+    pub fn with_capacity(len: usize) -> Self {
+        SortedList { keys: Vec::with_capacity(len), values: Vec::with_capacity(len) }
+    }
+
     /// Returns the number of tuples
     pub fn len(&self) -> usize {
         self.keys.len()
@@ -177,6 +182,12 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
             },
             Err(pos) => Err(pos),
         }
+    }
+
+    /// Shrinks excess capacity from underlying vecs.
+    pub fn shrink_to_fit(&mut self) {
+        self.keys.shrink_to_fit();
+        self.values.shrink_to_fit();
     }
 }
 
