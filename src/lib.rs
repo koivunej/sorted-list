@@ -14,6 +14,8 @@ use std::collections::Bound::*;
 #[cfg(feature = "nightly")]
 use std::collections::range::RangeArgument;
 
+use std::iter::FromIterator;
+
 /// `SortedList` stores multiple `(K, V)` tuples ordered by K, then in the order of insertion for `V`.
 /// Implmented using two `Vec` this should be fast for in-order inserts and quite bad in the
 /// worst-case of reverse insertion order.
@@ -197,6 +199,18 @@ impl<K: Ord + Clone, V: PartialEq + Clone> Clone for SortedList<K, V> {
             keys: self.keys.clone(),
             values: self.values.clone(),
         }
+    }
+}
+
+impl<K: Ord, V: PartialEq> FromIterator<(K, V)> for SortedList<K, V> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut this = Self::new();
+
+        for (k, v) in iter {
+            this.insert(k, v);
+        }
+
+        this
     }
 }
 
@@ -846,5 +860,11 @@ mod tests {
         assert_eq!(
             list.clone().into_iter().collect::<Vec<_>>(),
             to_vec(list.iter()));
+    }
+
+    #[test]
+    fn from_iter() {
+        let coll = (0..20).into_iter().map(|x| (x, x + 5)).collect::<SortedList<_, _>>();
+        assert_eq!(coll.len(), 20);
     }
 }
