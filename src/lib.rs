@@ -583,8 +583,8 @@ mod tests {
     fn extend_worst_case() {
         use std::time::Instant;
 
-        /// 1000, 100 => 4.08s (3.76s release) originally
-        /// 1000, 100 for copy types: 0.66s (0.23s release)
+        // 1000, 100 => 4.08s (3.76s release) originally
+        // 1000, 100 for copy types: 0.66s (0.23s release)
         let max_key = 1000;
         let max_val = 100;
         let mut input = Vec::with_capacity(max_key * max_val);
