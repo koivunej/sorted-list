@@ -36,12 +36,18 @@ pub struct SortedList<K: Ord, V: PartialEq> {
 impl<K: Ord, V: PartialEq> SortedList<K, V> {
     /// Creates a new as small as possible `SortedList`
     pub fn new() -> Self {
-        SortedList { keys: Vec::new(), values: Vec::new() }
+        SortedList {
+            keys: Vec::new(),
+            values: Vec::new(),
+        }
     }
 
     /// Creates `SortedList` with preallocated capacity of `len`
     pub fn with_capacity(len: usize) -> Self {
-        SortedList { keys: Vec::with_capacity(len), values: Vec::with_capacity(len) }
+        SortedList {
+            keys: Vec::with_capacity(len),
+            values: Vec::with_capacity(len),
+        }
     }
 
     /// Returns the number of tuples
@@ -67,7 +73,7 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
                 } else {
                     false
                 }
-            },
+            }
             Err(insert_at) => {
                 self.keys.insert(insert_at, key);
                 self.values.insert(insert_at, value);
@@ -78,20 +84,23 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     }
 
     /// Returns the values of a specific key as a slice
-    pub fn values_of(& self, key: &K) -> &[V] {
+    pub fn values_of(&self, key: &K) -> &[V] {
         let first = self.find_first_position(key).ok();
         match first {
             Some(first) => {
                 let last = self.find_last_position(key).unwrap();
                 &self.values[first..last]
-            },
-            None => {
-                &self.values[0..0]
             }
+            None => &self.values[0..0],
         }
     }
 
-    fn find_insertion_positition(&self, from: usize, key: &K, value: &V) -> Option<InsertionPosition> {
+    fn find_insertion_positition(
+        &self,
+        from: usize,
+        key: &K,
+        value: &V,
+    ) -> Option<InsertionPosition> {
         let mut keys = self.keys.iter().skip(from);
         let mut values = self.values.iter().skip(from);
 
@@ -111,7 +120,7 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
                         // we ran past the matching keys, insert before
                         return Some(InsertionPosition::Before(index));
                     }
-                },
+                }
                 (None, None) => {
                     return Some(InsertionPosition::Last);
                 }
@@ -142,18 +151,24 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
 
     /// Returns the first (in insertion order) value of `key`
     pub fn first_value_of(&self, key: &K) -> Option<&V> {
-        self.find_first_position(key).ok().map(|idx| &self.values[idx])
+        self.find_first_position(key)
+            .ok()
+            .map(|idx| &self.values[idx])
     }
 
     /// Returns the last (in insertion order) value of `key`
     pub fn last_value_of(&self, key: &K) -> Option<&V> {
-        self.find_last_position(key).ok().map(|idx| &self.values[idx - 1])
+        self.find_last_position(key)
+            .ok()
+            .map(|idx| &self.values[idx - 1])
     }
 
     fn find_first_position(&self, key: &K) -> Result<usize, usize> {
         match self.keys.binary_search(key) {
             Ok(mut pos) => {
-                while pos > 0 && key == &self.keys[pos] { pos -= 1; }
+                while pos > 0 && key == &self.keys[pos] {
+                    pos -= 1;
+                }
 
                 if pos == 0 {
                     if key == &self.keys[0] {
@@ -164,7 +179,7 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
                 } else {
                     Ok(pos + 1)
                 }
-            },
+            }
             Err(pos) => Err(pos),
         }
     }
@@ -172,7 +187,9 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     fn find_last_position(&self, key: &K) -> Result<usize, usize> {
         match self.keys.binary_search(key) {
             Ok(mut pos) => {
-                while pos < self.keys.len() && key == &self.keys[pos] { pos += 1; }
+                while pos < self.keys.len() && key == &self.keys[pos] {
+                    pos += 1;
+                }
 
                 if pos == self.keys.len() {
                     // this is off by one ...
@@ -180,7 +197,7 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
                 } else {
                     Ok(pos)
                 }
-            },
+            }
             Err(pos) => Err(pos),
         }
     }
@@ -228,12 +245,15 @@ impl<A> ResultExt<A> for Result<A, A> {
 
 impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
     /// Returns an iterator over the specified range of tuples
-    pub fn range<R>(&self, range: R) -> Tuples<K, V> where R: RangeBounds<K>, {
+    pub fn range<R>(&self, range: R) -> Tuples<K, V>
+    where
+        R: RangeBounds<K>,
+    {
         use std::ops::Bound::*;
         let start = match range.start_bound() {
             Included(key) => self.find_first_position(key).either().into(),
             Excluded(key) => self.find_last_position(key).either().into(),
-            Unbounded => Some(0)
+            Unbounded => Some(0),
         };
 
         let end = match range.end_bound() {
@@ -245,7 +265,12 @@ impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
         let skip = start.unwrap_or(self.keys.len());
         let take = if end <= skip { 0 } else { end };
 
-        Tuples { keys: &self.keys, values: &self.values, low: skip, high: take }
+        Tuples {
+            keys: &self.keys,
+            values: &self.values,
+            low: skip,
+            high: take,
+        }
     }
 }
 
@@ -269,7 +294,11 @@ pub struct IntoTuples<K, V> {
 
 impl<K, V> fmt::Debug for IntoTuples<K, V> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "IntoTuples {{ remaining: {} }}", self.keys.size_hint().0)
+        write!(
+            fmt,
+            "IntoTuples {{ remaining: {} }}",
+            self.keys.size_hint().0
+        )
     }
 }
 
@@ -280,7 +309,7 @@ impl<K, V> Iterator for IntoTuples<K, V> {
         match (self.keys.next(), self.values.next()) {
             (Some(k), Some(v)) => (k, v).into(),
             (None, None) => None,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -294,7 +323,7 @@ impl<K, V> DoubleEndedIterator for IntoTuples<K, V> {
         match (self.keys.next_back(), self.values.next_back()) {
             (Some(k), Some(v)) => (k, v).into(),
             (None, None) => None,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -302,7 +331,10 @@ impl<K, V> DoubleEndedIterator for IntoTuples<K, V> {
 impl<K, V> ExactSizeIterator for IntoTuples<K, V> {}
 
 impl<K: Clone + Ord, V: PartialEq> Extend<(K, V)> for SortedList<K, V> {
-    fn extend<T>(&mut self, iter: T) where T: IntoIterator<Item = (K, V)> {
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = (K, V)>,
+    {
         let mut temp = iter.into_iter().collect::<Vec<_>>();
         temp.sort_by_key(|&(ref k, _)| k.clone());
 
@@ -321,7 +353,7 @@ impl<K: Ord + fmt::Debug, V: PartialEq + fmt::Debug> fmt::Debug for SortedList<K
 /// Helper value for knowning where to insert the value
 enum InsertionPosition {
     Before(usize),
-    Last
+    Last,
 }
 
 impl InsertionPosition {
@@ -332,7 +364,7 @@ impl InsertionPosition {
                 values.insert(index - 1, value);
 
                 assert_eq!(keys.len(), values.len());
-            },
+            }
             InsertionPosition::Last => {
                 keys.push(key);
                 values.push(value);
@@ -415,20 +447,27 @@ impl<'a, K, V> ExactSizeIterator for Tuples<'a, K, V> {}
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Debug;
     use super::SortedList;
+    use std::fmt::Debug;
 
     /// Extension trait with asserting methods
     trait SortedListExt<K, V> {
         fn insert_only_new(&mut self, key: K, value: V);
     }
 
-    impl<K: Debug + Clone + Ord, V: Debug + Clone + PartialEq> SortedListExt<K, V> for SortedList<K, V> {
+    impl<K: Debug + Clone + Ord, V: Debug + Clone + PartialEq> SortedListExt<K, V>
+        for SortedList<K, V>
+    {
         fn insert_only_new(&mut self, key: K, value: V) {
             let cloned_key = key.clone();
             let cloned_value = value.clone();
 
-            assert!(self.insert(key, value), "pair existed already: ({:?}, {:?})", cloned_key, cloned_value);
+            assert!(
+                self.insert(key, value),
+                "pair existed already: ({:?}, {:?})",
+                cloned_key,
+                cloned_value
+            );
         }
     }
 
@@ -599,10 +638,16 @@ mod tests {
         slist.extend(input);
 
         let elapsed = began.elapsed();
-        println!("elapsed: {}.{:09}s", elapsed.as_secs(), elapsed.subsec_nanos());
+        println!(
+            "elapsed: {}.{:09}s",
+            elapsed.as_secs(),
+            elapsed.subsec_nanos()
+        );
     }
 
-    fn to_vec<'a, A: 'a + Copy, B: 'a + Copy, I: Iterator<Item=(&'a A, &'a B)>>(it: I) -> Vec<(A, B)> {
+    fn to_vec<'a, A: 'a + Copy, B: 'a + Copy, I: Iterator<Item = (&'a A, &'a B)>>(
+        it: I,
+    ) -> Vec<(A, B)> {
         it.map(|(a, b)| (*a, *b)).collect()
     }
 
@@ -627,99 +672,111 @@ mod tests {
 
         assert_eq!(
             to_vec(list.range((Unbounded, Included(2)))),
-            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4), (2, 5), (2, 6)]);
+            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4), (2, 5), (2, 6)]
+        );
 
         assert_eq!(
             to_vec(list.range((Unbounded, Excluded(2)))),
-            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4)]);
+            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4)]
+        );
 
         assert_eq!(
             to_vec(list.range((Included(0), Excluded(2)))),
-            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4)]);
+            vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 4)]
+        );
 
-        assert_eq!(
-            to_vec(list.range((Included(1), Excluded(2)))),
-            vec![(1, 4)]);
+        assert_eq!(to_vec(list.range((Included(1), Excluded(2)))), vec![(1, 4)]);
 
-        assert_eq!(
-            to_vec(list.range((Included(2), Excluded(2)))),
-            vec![]);
+        assert_eq!(to_vec(list.range((Included(2), Excluded(2)))), vec![]);
 
         assert_eq!(
             to_vec(list.range((Included(2), Included(2)))),
-            vec![(2, 5), (2, 6)]);
+            vec![(2, 5), (2, 6)]
+        );
 
         assert_eq!(
             to_vec(list.range((Included(2), Excluded(3)))),
-            vec![(2, 5), (2, 6)]);
+            vec![(2, 5), (2, 6)]
+        );
 
         assert_eq!(
             to_vec(list.range((Included(2), Included(3)))),
-            vec![(2, 5), (2, 6), (3, 7)]);
+            vec![(2, 5), (2, 6), (3, 7)]
+        );
 
         assert_eq!(
             to_vec(list.range((Included(2), Unbounded))),
-            vec![(2, 5), (2, 6), (3, 7), (4, 8), (6, 9), (6, 10), (9, 11)]);
+            vec![(2, 5), (2, 6), (3, 7), (4, 8), (6, 9), (6, 10), (9, 11)]
+        );
 
         assert_eq!(
             to_vec(list.range((Excluded(1), Unbounded))),
-            vec![(2, 5), (2, 6), (3, 7), (4, 8), (6, 9), (6, 10), (9, 11)]);
+            vec![(2, 5), (2, 6), (3, 7), (4, 8), (6, 9), (6, 10), (9, 11)]
+        );
 
         assert_eq!(
             to_vec(list.range((Excluded(0), Unbounded))),
-            vec![(1, 4), (2, 5), (2, 6), (3, 7), (4, 8), (6, 9), (6, 10), (9, 11)]);
+            vec![
+                (1, 4),
+                (2, 5),
+                (2, 6),
+                (3, 7),
+                (4, 8),
+                (6, 9),
+                (6, 10),
+                (9, 11)
+            ]
+        );
 
         assert_eq!(
             to_vec(list.range((Excluded(4), Unbounded))),
-            vec![(6, 9), (6, 10), (9, 11)]);
+            vec![(6, 9), (6, 10), (9, 11)]
+        );
 
         assert_eq!(
             to_vec(list.range((Included(5), Unbounded))),
-            vec![(6, 9), (6, 10), (9, 11)]);
+            vec![(6, 9), (6, 10), (9, 11)]
+        );
 
         assert_eq!(
             to_vec(list.range((Excluded(5), Unbounded))),
-            vec![(6, 9), (6, 10), (9, 11)]);
+            vec![(6, 9), (6, 10), (9, 11)]
+        );
 
-        assert_eq!(
-            to_vec(list.range((Excluded(6), Unbounded))),
-            vec![(9, 11)]);
+        assert_eq!(to_vec(list.range((Excluded(6), Unbounded))), vec![(9, 11)]);
 
-        assert_eq!(
-            to_vec(list.range((Excluded(6), Excluded(7)))),
-            vec![]);
+        assert_eq!(to_vec(list.range((Excluded(6), Excluded(7)))), vec![]);
 
-        assert_eq!(
-            to_vec(list.range((Excluded(6), Included(8)))),
-            vec![]);
+        assert_eq!(to_vec(list.range((Excluded(6), Included(8)))), vec![]);
 
-        assert_eq!(
-            to_vec(list.range((Excluded(6), Excluded(9)))),
-            vec![]);
+        assert_eq!(to_vec(list.range((Excluded(6), Excluded(9)))), vec![]);
 
         assert_eq!(
             to_vec(list.range((Excluded(6), Included(9)))),
-            vec![(9, 11)]);
+            vec![(9, 11)]
+        );
 
         assert_eq!(
             to_vec(list.range((Excluded(7), Included(9)))),
-            vec![(9, 11)]);
+            vec![(9, 11)]
+        );
 
         assert_eq!(
             to_vec(list.range((Included(7), Included(9)))),
-            vec![(9, 11)]);
+            vec![(9, 11)]
+        );
 
         assert_eq!(
             to_vec(list.range((Excluded(8), Included(9)))),
-            vec![(9, 11)]);
+            vec![(9, 11)]
+        );
 
         assert_eq!(
             to_vec(list.range((Included(8), Included(9)))),
-            vec![(9, 11)]);
+            vec![(9, 11)]
+        );
 
-        assert_eq!(
-            to_vec(list.range(..)),
-            to_vec(list.iter()));
+        assert_eq!(to_vec(list.range(..)), to_vec(list.iter()));
     }
 
     #[test]
@@ -787,7 +844,8 @@ mod tests {
 
         assert_eq!(
             to_vec(list.iter().rev()),
-            vec![(3, 6), (2, 5), (2, 4), (1, 3), (0, 2), (0, 1), (0, 0)]);
+            vec![(3, 6), (2, 5), (2, 4), (1, 3), (0, 2), (0, 1), (0, 0)]
+        );
     }
 
     #[test]
@@ -835,15 +893,7 @@ mod tests {
 
         assert_eq!(
             items,
-            vec![
-                (0, 1),
-                (0, 0),
-                (0, 2),
-                (1, 3),
-                (2, 4),
-                (2, 5),
-                (3, 6),
-            ]
+            vec![(0, 1), (0, 0), (0, 2), (1, 3), (2, 4), (2, 5), (3, 6),]
         );
     }
 
@@ -888,12 +938,16 @@ mod tests {
 
         assert_eq!(
             list.clone().into_iter().collect::<Vec<_>>(),
-            to_vec(list.iter()));
+            to_vec(list.iter())
+        );
     }
 
     #[test]
     fn from_iter() {
-        let coll = (0..20).into_iter().map(|x| (x, x + 5)).collect::<SortedList<_, _>>();
+        let coll = (0..20)
+            .into_iter()
+            .map(|x| (x, x + 5))
+            .collect::<SortedList<_, _>>();
         assert_eq!(coll.len(), 20);
     }
 }
