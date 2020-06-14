@@ -818,6 +818,36 @@ mod tests {
     }
 
     #[test]
+    fn out_of_order_insert() {
+        // this is just a reminder for myself: the values are not Ord or PartialOrd and are **not**
+        // sorted.
+        let mut list: SortedList<u32, u8> = SortedList::new();
+
+        list.insert_only_new(1, 3);
+        list.insert_only_new(0, 1);
+        list.insert_only_new(0, 0);
+        list.insert_only_new(2, 4);
+        list.insert_only_new(0, 2);
+        list.insert_only_new(3, 6);
+        list.insert_only_new(2, 5);
+
+        let items: Vec<(u32, u8)> = list.iter().map(|(k, v)| (*k, *v)).collect::<Vec<_>>();
+
+        assert_eq!(
+            items,
+            vec![
+                (0, 1),
+                (0, 0),
+                (0, 2),
+                (1, 3),
+                (2, 4),
+                (2, 5),
+                (3, 6),
+            ]
+        );
+    }
+
+    #[test]
     fn double_ended_iter_zag_zig() {
         let mut list: SortedList<u32, u8> = SortedList::new();
 
