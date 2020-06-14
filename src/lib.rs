@@ -2,17 +2,11 @@
 #![deny(missing_debug_implementations)]
 #![deny(unused_imports)]
 
-#![cfg_attr(feature = "nightly", feature(collections_range))]
-
 //! Simple sorted list collection like the one found in the .NET collections library.
 
 use std::fmt;
 
-#[cfg(feature = "nightly")]
-use std::collections::Bound::*;
-
-#[cfg(feature = "nightly")]
-use std::collections::range::RangeArgument;
+use std::ops::RangeBounds;
 
 use std::iter::FromIterator;
 
@@ -53,6 +47,11 @@ impl<K: Ord, V: PartialEq> SortedList<K, V> {
     /// Returns the number of tuples
     pub fn len(&self) -> usize {
         self.keys.len()
+    }
+
+    /// Returns true if the collection is empty.
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
     }
 
     /// Returns `true` if the `(key, value)` did not exist in the sorted list before and it exists now,
@@ -227,17 +226,17 @@ impl<A> ResultExt<A> for Result<A, A> {
     }
 }
 
-#[cfg(feature = "nightly")]
 impl<K: Ord + PartialEq, V: PartialEq> SortedList<K, V> {
     /// Returns an iterator over the specified range of tuples
-    pub fn range<R>(&self, range: R) -> Tuples<K, V> where R: RangeArgument<K>, {
-        let start = match range.start() {
+    pub fn range<R>(&self, range: R) -> Tuples<K, V> where R: RangeBounds<K>, {
+        use std::ops::Bound::*;
+        let start = match range.start_bound() {
             Included(key) => self.find_first_position(key).either().into(),
             Excluded(key) => self.find_last_position(key).either().into(),
             Unbounded => Some(0)
         };
 
-        let end = match range.end() {
+        let end = match range.end_bound() {
             Included(key) => self.find_last_position(key).either(),
             Excluded(key) => self.find_first_position(key).either(),
             Unbounded => self.len(),
@@ -386,8 +385,8 @@ impl<'a, K, V> DoubleEndedIterator for Tuples<'a, K, V> {
 impl<'a, K, V> Clone for Tuples<'a, K, V> {
     fn clone(&self) -> Self {
         Tuples {
-            keys: self.keys.clone(),
-            values: self.values.clone(),
+            keys: self.keys,
+            values: self.values,
             low: self.low,
             high: self.high,
         }
