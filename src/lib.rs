@@ -654,7 +654,7 @@ mod tests {
     #[cfg(feature = "nightly")]
     #[test]
     fn range() {
-        use std::collections::Bound::*;
+        use std::ops::Bound::*;
 
         let mut list: SortedList<u32, u8> = SortedList::new();
         list.insert_only_new(1, 4);
